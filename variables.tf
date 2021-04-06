@@ -11,22 +11,22 @@ variable "ec2" {
 variable "ec2_extra" {
   description  = "EC2 instance name and type for build and developer systems"
   default      = {
-	build      = "t4g.micro"
-        developer  = "c6g.xlarge"
+    build      = "t4g.micro"
+    developer  = "c6g.xlarge"
    }
 }
 
 variable "magento" {
   description      = "Map some magento values"
   default          = {
-    mage_owner            = "magenx"
-    mage_domain           = "demo.magenx.com"
-    mage_admin_email      = "admin@magenx.com"
-    mage_staging_domain   = "staging.magenx.com"
-    mage_developer_domain = "developer.magenx.com"
+    mage_owner            = "fitchs"
+    mage_domain           = "aws.fitchs.com.au"
+    mage_admin_email      = "scott.wakefield@fitchs.com.au"
+    mage_staging_domain   = "staging.aws.fitchs.com.au"
+    mage_developer_domain = "developer.aws.fitchs.com.au"
     admin_path            = "ADMIN_PLACEHOLDER"
-    language              = "en_US"
-    currency              = "EUR"
+    language              = "en_AU"
+    currency              = "AUD"
     timezone              = "UTC"
     php_version           = "7.4"
   }
@@ -35,7 +35,7 @@ variable "magento" {
 variable "elk" {
   description      = "Map some ElasticSearch configuration values"
   default  = {
-    elk_domain      = "magenx-elk"
+    elk_domain      = "fitchs-elk"
     elk_ver         = "7.9"
     elk_type        = "t2.small.elasticsearch"
     elk_ebs_enabled = true
@@ -47,7 +47,7 @@ variable "elk" {
 variable "rds" {
   description      = "Map some RDS configuration values"
   default  = {
-    rds_database     = "magenx_aws_demo"
+    rds_database     = "fitchs_aws"
     rds_storage      = "20"
     rds_max_storage  = "100"
     rds_storage_type = "gp2"
