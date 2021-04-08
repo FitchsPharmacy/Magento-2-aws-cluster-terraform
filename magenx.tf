@@ -398,6 +398,32 @@ resource "aws_s3_bucket_policy" "s3_bucket_media_policy" {
         )
 }
 # # ---------------------------------------------------------------------------------------------------------------------#
+# Create S3 bucket policy for ALB to write access logs
+# # ---------------------------------------------------------------------------------------------------------------------#
+resource "aws_s3_bucket_policy" "s3_bucket_system_policy" {
+  bucket = aws_s3_bucket.s3_bucket["system"].id
+  policy = jsonencode(
+            {
+  Id = "PolicyALBWriteLogs"
+  Version = "2012-10-17"
+  Statement = [
+    {
+      Action = [
+        "s3:PutObject"
+      ],
+      Effect = "Allow"
+      Resource = "arn:aws:s3:::${aws_s3_bucket.s3_bucket["system"].id}/${var.magento["mage_owner"]}-alb/AWSLogs/${data.aws_caller_identity.current.account_id}/*"
+      Principal = {
+        AWS = [
+          data.aws_elb_service_account.current.arn
+        ]
+      }
+    }
+  ]
+}
+)
+}
+# # ---------------------------------------------------------------------------------------------------------------------#
 # Create ElasticSearch service role
 # # ---------------------------------------------------------------------------------------------------------------------#
 resource "aws_iam_service_linked_role" "elasticsearch_domain" {
@@ -468,15 +494,59 @@ resource "aws_db_instance" "db_instance" {
   }
 }
 # # ---------------------------------------------------------------------------------------------------------------------#
-# Create Application Load Balancer loop names
+# Create Security Groups for Application Load Balancer
+# # ---------------------------------------------------------------------------------------------------------------------#
+resource "aws_security_group" "alb_security_group" {
+  for_each    = var.load_balancer_name
+  name        = "${var.magento["mage_owner"]}-${each.key}-alb"
+  description = "${each.key} lb security group"
+  vpc_id      = data.aws_vpc.default.id
+  
+    tags = {
+    Name = "${var.magento["mage_owner"]}-${each.key}-alb"
+  }
+}
+# # ---------------------------------------------------------------------------------------------------------------------#
+# Create Security Rules for Application Load Balancer Security Groups
+# # ---------------------------------------------------------------------------------------------------------------------#
+resource "aws_security_group_rule" "outer_alb_security" {
+   for_each =  local.outer_alb_security_rules
+      type             = lookup(each.value, "type", null)
+      description      = lookup(each.value, "description", null)
+      from_port        = lookup(each.value, "from_port", null)
+      to_port          = lookup(each.value, "to_port", null)
+      protocol         = lookup(each.value, "protocol", null)
+      cidr_blocks      = lookup(each.value, "cidr_blocks", null)
+      source_security_group_id = lookup(each.value, "source_security_group_id", null)
+      security_group_id = aws_security_group.alb_security_group["outer"].id
+}
+
+resource "aws_security_group_rule" "inner_alb_security" {
+   for_each =  local.inner_alb_security_rules
+      type             = lookup(each.value, "type", null)
+      description      = lookup(each.value, "description", null)
+      from_port        = lookup(each.value, "from_port", null)
+      to_port          = lookup(each.value, "to_port", null)
+      protocol         = lookup(each.value, "protocol", null)
+      cidr_blocks      = lookup(each.value, "cidr_blocks", null)
+      source_security_group_id = lookup(each.value, "source_security_group_id", null)
+      security_group_id = aws_security_group.alb_security_group["inner"].id
+}
+# # ---------------------------------------------------------------------------------------------------------------------#
+# Create Application Load Balancers
 # # ---------------------------------------------------------------------------------------------------------------------#
 resource "aws_lb" "load_balancer" {
   for_each           = var.load_balancer_name
   name               = "${var.magento["mage_owner"]}-${each.key}-alb"
   internal           = false
   load_balancer_type = "application"
-  security_groups    = [data.aws_security_group.security_group.id]
+  security_groups    = [aws_security_group.alb_security_group[each.key].id]
   subnets            = data.aws_subnet_ids.subnet_ids.ids
+  access_logs {
+    bucket  = aws_s3_bucket.s3_bucket["system"].bucket
+    prefix  = "${var.magento["mage_owner"]}-alb"
+    enabled = true
+  }
   tags = {
     Name = "${var.magento["mage_owner"]}-${each.key}-alb"
   }
