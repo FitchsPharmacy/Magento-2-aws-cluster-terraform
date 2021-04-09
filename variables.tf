@@ -35,47 +35,50 @@ variable "magento" {
 variable "elk" {
   description      = "Map some ElasticSearch configuration values"
   default  = {
-    elk_domain      = "fitchs-elk"
-    elk_ver         = "7.9"
-    elk_type        = "t2.small.elasticsearch"
-    elk_ebs_enabled = true
-    elk_ebs_type    = "gp2"
-    elk_ebs         = "10"
+    domain_name            = "fitchs-elk"
+    elasticsearch_version  = "7.9"
+    instance_type          = "t2.small.elasticsearch"
+    instance_count         = "1"
+    ebs_enabled            = true
+    volume_type            = "gp2"
+    volume_size            = "10"
   }
 }
 
 variable "rds" {
   description      = "Map some RDS configuration values"
   default  = {
-    rds_database     = "fitchs_aws"
-    rds_storage      = "20"
-    rds_max_storage  = "100"
-    rds_storage_type = "gp2"
-    rds_version      = "8.0.21"
-    rds_class        = "db.m6g.large"
-    rds_engine       = "mysql"
-    rds_params       = "default.mysql8.0"
-    rds_skip_snap    = "true"
+    name                   = "fitchs_aws"
+    allocated_storage      = "20"
+    max_allocated_storage  = "100"
+    storage_type           = "gp2"
+    engine_version         = "8.0.21"
+    instance_class         = "db.m6g.large"
+    engine                 = "mysql"
+    parameter_group_name   = "default.mysql8.0"
+    skip_final_snapshot    = "true"
   }
 }
 	  
 variable "redis" {
   description      = "Map some ElastiCache configuration values"
   default  = {    
-    redis_type       = "cache.m6g.large"
-    redis_params     = "default.redis6.x.cluster.on"
-    redis_replica    = "2"
-    redis_shard      = "1"
-    redis_name       = ["session", "cache"]
+    node_type                  = "cache.m6g.large"
+    parameter_group_name       = "default.redis6.x.cluster.on"
+    replicas_per_node_group    = "2"
+    num_node_groups            = "1"
+    redis_name                 = ["session", "cache"]
   }
 }
 	  
 variable "asg" {
   description      = "Map some Autoscaling configuration values"
   default  = {
-    asg_des         = "1"
-    asg_min         = "1"
-    asg_max         = "5"
+    desired_capacity      = "1"
+    min_size              = "1"
+    max_size              = "5"
+    health_check_type     = "EC2"
+    health_check_grace_period = "300"
   }
 }
 	  
@@ -90,9 +93,9 @@ variable "asp" {
 }
 
 variable "s3" {
-  description = "S3 names"
+  description = "S3 bucket names"
   type        = set(string)
-  default     = ["media", "static", "system"]
+  default     = ["media", "system"]
 }
 
 variable "efs_name" {

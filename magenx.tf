@@ -230,7 +230,7 @@ mainSteps:
       --base-url=https://${var.magento["mage_domain"]}/ \
       --base-url-secure=https://${var.magento["mage_domain"]}/ \
       --db-host=${aws_db_instance.db_instance.endpoint} \
-      --db-name=${var.rds["rds_database"]} \
+      --db-name=${var.rds["name"]} \
       --db-user=${var.magento["mage_owner"]} \
       --db-password='${random_password.password[1].result}' \
       --admin-firstname=${var.magento["mage_owner"]} \
@@ -352,14 +352,14 @@ resource "aws_elasticache_replication_group" "elasticache_cluster" {
   engine                        = "redis"
   replication_group_id          = "${var.magento["mage_owner"]}-${each.key}-backend"
   replication_group_description = "Replication group for ${var.magento["mage_domain"]} ${each.key} backend"
-  node_type                     = var.redis["redis_type"]
+  node_type                     = var.redis["node_type"]
   port                          = 6379
-  parameter_group_name          = var.redis["redis_params"]
+  parameter_group_name          = var.redis["parameter_group_name"]
   automatic_failover_enabled    = true
   multi_az_enabled              = true
 
   cluster_mode {
-    replicas_per_node_group = var.redis["redis_replica"]
+    replicas_per_node_group = var.redis["replicas_per_node_group"]
     num_node_groups         = var.redis["redis_shard"]
   }
 }
@@ -434,23 +434,23 @@ resource "aws_iam_service_linked_role" "elasticsearch_domain" {
 # # ---------------------------------------------------------------------------------------------------------------------#
 resource "aws_elasticsearch_domain" "elasticsearch_domain" {
   depends_on = [aws_iam_service_linked_role.elasticsearch_domain]
-  domain_name           = var.elk["elk_domain"]
-  elasticsearch_version = var.elk["elk_ver"]
+  domain_name           = var.elk["domain_name"]
+  elasticsearch_version = var.elk["elasticsearch_version"]
   cluster_config {
-    instance_type  = var.elk["elk_type"]
-    instance_count = "1"
+    instance_type  = var.elk["instance_type"]
+    instance_count = var.elk["instance_count"]
   }
   ebs_options {
-    ebs_enabled = var.elk["elk_ebs_enabled"]
-    volume_type = var.elk["elk_ebs_type"]
-    volume_size = var.elk["elk_ebs"]
+    ebs_enabled = var.elk["ebs_enabled"]
+    volume_type = var.elk["volume_type"]
+    volume_size = var.elk["volume_size"]
   }
   vpc_options {
     subnet_ids = [sort(data.aws_subnet_ids.subnet_ids.ids)[0]]
     security_group_ids = [data.aws_security_group.security_group.id]
   }
   tags = {
-    Name = var.elk["elk_domain"]
+    Name = var.elk["domain_name"]
   }
   access_policies = <<EOF
 {
@@ -466,7 +466,7 @@ resource "aws_elasticsearch_domain" "elasticsearch_domain" {
       "Action": [
         "es:*"
       ],
-      "Resource": "arn:aws:es:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:domain/${var.elk["elk_domain"]}/*"
+      "Resource": "arn:aws:es:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:domain/${var.elk["domain_name"]}/*"
     }
   ]
 }
@@ -477,17 +477,17 @@ EOF
 # # ---------------------------------------------------------------------------------------------------------------------#
 resource "aws_db_instance" "db_instance" {
   identifier            = "${var.magento["mage_owner"]}-database"
-  allocated_storage     = var.rds["rds_storage"]
-  max_allocated_storage = var.rds["rds_max_storage"]
-  storage_type          = var.rds["rds_storage_type"] 
-  engine                = var.rds["rds_engine"]
-  engine_version        = var.rds["rds_version"]
-  instance_class        = var.rds["rds_class"]
-  name                  = var.rds["rds_database"]
+  allocated_storage     = var.rds["allocated_storage"]
+  max_allocated_storage = var.rds["max_allocated_storage"]
+  storage_type          = var.rds["storage_type"] 
+  engine                = var.rds["engine"]
+  engine_version        = var.rds["engine_version"]
+  instance_class        = var.rds["instance_class"]
+  name                  = var.rds["name"]
   username              = var.magento["mage_owner"]
   password              = random_password.password[1].result
-  parameter_group_name  = var.rds["rds_params"]
-  skip_final_snapshot   = var.rds["rds_skip_snap"]
+  parameter_group_name  = var.rds["parameter_group_name"]
+  skip_final_snapshot   = var.rds["skip_final_snapshot"]
   copy_tags_to_snapshot = true
   tags = {
     Name = "${var.magento["mage_owner"]}-database"
@@ -571,7 +571,7 @@ resource "aws_instance" "instances" {
   iam_instance_profile = aws_iam_instance_profile.ec2_instance_profile.name
   vpc_security_group_ids = [data.aws_security_group.security_group.id]
   root_block_device {
-      volume_size = "100"
+      volume_size = "50"
       volume_type = "gp3"
     }
   tags = {
@@ -591,7 +591,7 @@ resource "aws_launch_template" "launch_template" {
   block_device_mappings {
     device_name = "/dev/sda1"
     ebs { 
-        volume_size = "100"
+        volume_size = "50"
         volume_type = "gp3"
             }
   }
@@ -623,11 +623,11 @@ resource "aws_autoscaling_group" "autoscaling_group" {
   for_each = var.ec2
   name = "${var.magento["mage_owner"]}-${each.key}-asg"
   vpc_zone_identifier = data.aws_subnet_ids.subnet_ids.ids
-  desired_capacity   = var.asg["asg_des"]
-  max_size           = var.asg["asg_max"]
-  min_size           = var.asg["asg_min"]
-  health_check_grace_period = 300
-  health_check_type         = "ELB"
+  desired_capacity    = var.asg["desired_capacity"]
+  max_size            = var.asg["max_size"]
+  min_size            = var.asg["min_size"]
+  health_check_grace_period = var.asg["health_check_grace_period"]
+  health_check_type         = var.asg["health_check_type"]
   target_group_arns  = [aws_lb_target_group.target_group[each.key].arn]
   launch_template {
     name    = aws_launch_template.launch_template[each.key].name
